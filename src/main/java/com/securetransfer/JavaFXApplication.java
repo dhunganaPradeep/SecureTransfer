@@ -1,0 +1,66 @@
+package com.securetransfer;
+
+import com.securetransfer.controller.ui.BaseController;
+import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ConfigurableApplicationContext;
+
+import java.io.IOException;
+import java.net.URL;
+
+public class JavaFXApplication extends Application {
+
+    private ConfigurableApplicationContext springContext;
+    private Parent rootNode;
+
+    @Override
+    public void init() {
+        springContext = SpringApplication.run(SecureTransferApplication.class);
+    }
+
+    @Override
+    public void start(Stage primaryStage) throws Exception {
+        try {
+            URL fxmlUrl = getClass().getClassLoader().getResource("fxml/login.fxml");
+            if (fxmlUrl == null) {
+                throw new IOException("Cannot find fxml/login.fxml");
+            }
+
+            FXMLLoader fxmlLoader = new FXMLLoader(fxmlUrl);
+            fxmlLoader.setControllerFactory(springContext::getBean);
+            rootNode = fxmlLoader.load();
+            
+            // Inject Spring context into controller
+            Object controller = fxmlLoader.getController();
+            if (controller instanceof BaseController) {
+                ((BaseController) controller).setSpringContext(springContext);
+            }
+            
+            Scene scene = new Scene(rootNode);
+            
+            // Load stylesheet if it exists
+            URL cssUrl = getClass().getClassLoader().getResource("styles/global.css");
+            if (cssUrl != null) {
+                scene.getStylesheets().add(cssUrl.toExternalForm());
+            }
+            
+            primaryStage.setTitle("Secure Transfer");
+            primaryStage.setScene(scene);
+            primaryStage.setMinWidth(800);
+            primaryStage.setMinHeight(600);
+            primaryStage.show();
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Failed to load FXML: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void stop() {
+        springContext.close();
+    }
+} 
