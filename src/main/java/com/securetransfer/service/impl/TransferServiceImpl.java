@@ -214,6 +214,20 @@ public class TransferServiceImpl implements TransferService {
                         totalFileSize
                     );
                     activeSessions.put(transferCode, session);
+                    
+                    // Register the callback for when receiver connects
+                    registerReceiverConnectionCallback(transferCode, () -> {
+                        logger.info("Receiver connection callback triggered for transfer code: {}", transferCode);
+                        TransferSession currentSession = activeSessions.get(transferCode);
+                        if (currentSession != null) {
+                            String fileName = currentSession.getFileName();
+                            long fileSize = currentSession.getFileSize();
+                            showTransferConfirmationDialog(transferCode, fileName, fileSize);
+                        } else {
+                            logger.warn("No transfer session found for code: {}", transferCode);
+                        }
+                    });
+                    
                     future.complete(session);
                 }).exceptionally(ex -> {
                     logger.error("Failed to connect sender to WebSocket server: {}", ex.getMessage());
@@ -304,6 +318,20 @@ public class TransferServiceImpl implements TransferService {
                         fileSize
                     );
                     activeSessions.put(transferCode, session);
+                    
+                    // Register the callback for when receiver connects
+                    registerReceiverConnectionCallback(transferCode, () -> {
+                        logger.info("Receiver connection callback triggered for transfer code: {}", transferCode);
+                        TransferSession currentSession = activeSessions.get(transferCode);
+                        if (currentSession != null) {
+                            String currentFileName = currentSession.getFileName();
+                            long currentFileSize = currentSession.getFileSize();
+                            showTransferConfirmationDialog(transferCode, currentFileName, currentFileSize);
+                        } else {
+                            logger.warn("No transfer session found for code: {}", transferCode);
+                        }
+                    });
+                    
                     future.complete(session);
                 }).exceptionally(ex -> {
                     logger.error("Failed to connect sender to WebSocket server: {}", ex.getMessage());
@@ -822,11 +850,13 @@ public class TransferServiceImpl implements TransferService {
                 }
                 case "peerConnected" -> {
                     String role = root.path("role").asText("");
+                    logger.info("Received peerConnected message for transfer code: {} with role: {}", transferCode, role);
                     if ("receiver".equals(role)) {
                         logger.info("Receiver connected for transfer code: {}", transferCode);
                         // Trigger the receiver connection callback
                         Runnable callback = receiverConnectionCallbacks.get(transferCode);
                         if (callback != null) {
+                            logger.info("Executing receiver connection callback for transfer code: {}", transferCode);
                             callback.run();
                         } else {
                             logger.warn("No receiver connection callback registered for transfer code: {}", transferCode);
