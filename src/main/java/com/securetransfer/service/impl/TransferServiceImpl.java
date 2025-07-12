@@ -189,48 +189,66 @@ public class TransferServiceImpl implements TransferService {
             .thenRun(() -> {
                 // Connect sender to its own WebSocket server to receive notifications
                 logger.info("Connecting sender to WebSocket server for transfer code: {}", transferCode);
-                int websocketPort = webSocketServer.getActualPort();
-                List<String> localhostAddresses = Arrays.asList("127.0.0.1:" + websocketPort);
-                webSocketClientManager.connect(
-                    transferCode,
-                    "sender",
-                    localhostAddresses, // Connect to localhost with actual port
-                    msg -> logger.info("Sender connection status: {}", msg),
-                    err -> logger.error("Sender connection error: {}", err),
-                    url -> logger.info("Sender WebSocket open: {}", url),
-                    reason -> logger.info("Sender WebSocket closed: {}", reason),
-                    msg -> handleIncomingMessage(transferCode, msg),
-                    bytes -> handleIncomingBinary(transferCode, bytes)
-                ).thenAccept(connResult -> {
-                    activeClients.put(transferCode, connResult.client);
-                    logger.info("Sender connected to WebSocket server for transfer code: {}", transferCode);
+                try {
+                    int websocketPort = webSocketServer.getActualPort();
+                    logger.info("WebSocket server is running on port: {}", websocketPort);
+                    List<String> localhostAddresses = Arrays.asList("127.0.0.1:" + websocketPort);
+                    logger.info("Attempting to connect to: {}", localhostAddresses);
                     
-                    // Create and store the transfer session
-                    TransferSession session = new TransferSession(
-                        transferCode, 
-                        senderInfo,
-                        null, // receiver info not available yet
-                        displayFileName,
-                        totalFileSize
-                    );
-                    activeSessions.put(transferCode, session);
-                    
-                    // Register the callback for when receiver connects
-                    registerReceiverConnectionCallback(transferCode, () -> {
-                        logger.info("Receiver connection callback triggered for transfer code: {}", transferCode);
-                        TransferSession currentSession = activeSessions.get(transferCode);
-                        if (currentSession != null) {
-                            String fileName = currentSession.getFileName();
-                            long fileSize = currentSession.getFileSize();
-                            showTransferConfirmationDialog(transferCode, fileName, fileSize);
-                        } else {
-                            logger.warn("No transfer session found for code: {}", transferCode);
-                        }
+                    webSocketClientManager.connect(
+                        transferCode,
+                        "sender",
+                        localhostAddresses, // Connect to localhost with actual port
+                        msg -> logger.info("Sender connection status: {}", msg),
+                        err -> logger.error("Sender connection error: {}", err),
+                        url -> logger.info("Sender WebSocket open: {}", url),
+                        reason -> logger.info("Sender WebSocket closed: {}", reason),
+                        msg -> handleIncomingMessage(transferCode, msg),
+                        bytes -> handleIncomingBinary(transferCode, bytes)
+                    ).thenAccept(connResult -> {
+                        activeClients.put(transferCode, connResult.client);
+                        logger.info("Sender connected to WebSocket server for transfer code: {}", transferCode);
+                        
+                        // Create and store the transfer session
+                        TransferSession session = new TransferSession(
+                            transferCode, 
+                            senderInfo,
+                            null, // receiver info not available yet
+                            displayFileName,
+                            totalFileSize
+                        );
+                        activeSessions.put(transferCode, session);
+                        
+                        // Register the callback for when receiver connects
+                        registerReceiverConnectionCallback(transferCode, () -> {
+                            logger.info("Receiver connection callback triggered for transfer code: {}", transferCode);
+                            TransferSession currentSession = activeSessions.get(transferCode);
+                            if (currentSession != null) {
+                                String fileName = currentSession.getFileName();
+                                long fileSize = currentSession.getFileSize();
+                                showTransferConfirmationDialog(transferCode, fileName, fileSize);
+                            } else {
+                                logger.warn("No transfer session found for code: {}", transferCode);
+                            }
+                        });
+                        
+                        future.complete(session);
+                    }).exceptionally(ex -> {
+                        logger.error("Failed to connect sender to WebSocket server: {}", ex.getMessage(), ex);
+                        // Still complete the future with a session, but log the error
+                        TransferSession session = new TransferSession(
+                            transferCode,
+                            senderInfo,
+                            null,
+                            displayFileName,
+                            totalFileSize
+                        );
+                        activeSessions.put(transferCode, session);
+                        future.complete(session);
+                        return null;
                     });
-                    
-                    future.complete(session);
-                }).exceptionally(ex -> {
-                    logger.error("Failed to connect sender to WebSocket server: {}", ex.getMessage());
+                } catch (Exception e) {
+                    logger.error("Exception while connecting sender to WebSocket server: {}", e.getMessage(), e);
                     // Still complete the future with a session, but log the error
                     TransferSession session = new TransferSession(
                         transferCode,
@@ -241,8 +259,7 @@ public class TransferServiceImpl implements TransferService {
                     );
                     activeSessions.put(transferCode, session);
                     future.complete(session);
-                    return null;
-                });
+                }
             })
             .exceptionally(ex -> {
                 logger.error("Error registering sender: {}", ex.getMessage(), ex);
@@ -293,48 +310,66 @@ public class TransferServiceImpl implements TransferService {
             .thenRun(() -> {
                 // Connect sender to its own WebSocket server to receive notifications
                 logger.info("Connecting sender to WebSocket server for transfer code: {}", transferCode);
-                int websocketPort = webSocketServer.getActualPort();
-                List<String> localhostAddresses = Arrays.asList("127.0.0.1:" + websocketPort);
-                webSocketClientManager.connect(
-                    transferCode,
-                    "sender",
-                    localhostAddresses, // Connect to localhost with actual port
-                    msg -> logger.info("Sender connection status: {}", msg),
-                    err -> logger.error("Sender connection error: {}", err),
-                    url -> logger.info("Sender WebSocket open: {}", url),
-                    reason -> logger.info("Sender WebSocket closed: {}", reason),
-                    msg -> handleIncomingMessage(transferCode, msg),
-                    bytes -> handleIncomingBinary(transferCode, bytes)
-                ).thenAccept(connResult -> {
-                    activeClients.put(transferCode, connResult.client);
-                    logger.info("Sender connected to WebSocket server for transfer code: {}", transferCode);
+                try {
+                    int websocketPort = webSocketServer.getActualPort();
+                    logger.info("WebSocket server is running on port: {}", websocketPort);
+                    List<String> localhostAddresses = Arrays.asList("127.0.0.1:" + websocketPort);
+                    logger.info("Attempting to connect to: {}", localhostAddresses);
                     
-                    // Create and store the transfer session
-                    TransferSession session = new TransferSession(
+                    webSocketClientManager.connect(
                         transferCode,
-                        senderInfo,
-                        null, // receiver info not available yet
-                        fileName,
-                        fileSize
-                    );
-                    activeSessions.put(transferCode, session);
-                    
-                    // Register the callback for when receiver connects
-                    registerReceiverConnectionCallback(transferCode, () -> {
-                        logger.info("Receiver connection callback triggered for transfer code: {}", transferCode);
-                        TransferSession currentSession = activeSessions.get(transferCode);
-                        if (currentSession != null) {
-                            String currentFileName = currentSession.getFileName();
-                            long currentFileSize = currentSession.getFileSize();
-                            showTransferConfirmationDialog(transferCode, currentFileName, currentFileSize);
-                        } else {
-                            logger.warn("No transfer session found for code: {}", transferCode);
-                        }
+                        "sender",
+                        localhostAddresses, // Connect to localhost with actual port
+                        msg -> logger.info("Sender connection status: {}", msg),
+                        err -> logger.error("Sender connection error: {}", err),
+                        url -> logger.info("Sender WebSocket open: {}", url),
+                        reason -> logger.info("Sender WebSocket closed: {}", reason),
+                        msg -> handleIncomingMessage(transferCode, msg),
+                        bytes -> handleIncomingBinary(transferCode, bytes)
+                    ).thenAccept(connResult -> {
+                        activeClients.put(transferCode, connResult.client);
+                        logger.info("Sender connected to WebSocket server for transfer code: {}", transferCode);
+                        
+                        // Create and store the transfer session
+                        TransferSession session = new TransferSession(
+                            transferCode,
+                            senderInfo,
+                            null, // receiver info not available yet
+                            fileName,
+                            fileSize
+                        );
+                        activeSessions.put(transferCode, session);
+                        
+                        // Register the callback for when receiver connects
+                        registerReceiverConnectionCallback(transferCode, () -> {
+                            logger.info("Receiver connection callback triggered for transfer code: {}", transferCode);
+                            TransferSession currentSession = activeSessions.get(transferCode);
+                            if (currentSession != null) {
+                                String currentFileName = currentSession.getFileName();
+                                long currentFileSize = currentSession.getFileSize();
+                                showTransferConfirmationDialog(transferCode, currentFileName, currentFileSize);
+                            } else {
+                                logger.warn("No transfer session found for code: {}", transferCode);
+                            }
+                        });
+                        
+                        future.complete(session);
+                    }).exceptionally(ex -> {
+                        logger.error("Failed to connect sender to WebSocket server: {}", ex.getMessage(), ex);
+                        // Still complete the future with a session, but log the error
+                        TransferSession session = new TransferSession(
+                            transferCode,
+                            senderInfo,
+                            null,
+                            fileName,
+                            fileSize
+                        );
+                        activeSessions.put(transferCode, session);
+                        future.complete(session);
+                        return null;
                     });
-                    
-                    future.complete(session);
-                }).exceptionally(ex -> {
-                    logger.error("Failed to connect sender to WebSocket server: {}", ex.getMessage());
+                } catch (Exception e) {
+                    logger.error("Exception while connecting sender to WebSocket server: {}", e.getMessage(), e);
                     // Still complete the future with a session, but log the error
                     TransferSession session = new TransferSession(
                         transferCode,
@@ -345,8 +380,7 @@ public class TransferServiceImpl implements TransferService {
                     );
                     activeSessions.put(transferCode, session);
                     future.complete(session);
-                    return null;
-                });
+                }
             })
             .exceptionally(ex -> {
                 logger.error("Error registering sender: {}", ex.getMessage(), ex);
