@@ -45,7 +45,9 @@ CREATE TABLE IF NOT EXISTS sender_transfers (
     checksum VARCHAR(64),
     session_id VARCHAR(255),
     receiver_username VARCHAR(255),
-    error_message TEXT
+    error_message TEXT,
+    sender_ip VARCHAR(45),
+    sender_port INTEGER
 );
 
 -- Create receiver_transfers table (only if it doesn't exist)
@@ -64,3 +66,7 @@ CREATE TABLE IF NOT EXISTS receiver_transfers (
     error_message TEXT,
     auto_saved BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+-- Add new columns to existing sender_transfers table if they don't exist
+ALTER TABLE sender_transfers ADD COLUMN IF NOT EXISTS sender_ip VARCHAR(45);
+ALTER TABLE sender_transfers ADD COLUMN IF NOT EXISTS sender_port INTEGER;

@@ -430,9 +430,15 @@ public class TransferServiceImpl implements TransferService {
             peerAddresses.add(senderConnectionDetails);
             logger.info("Using sender's connection details for connection: {}", senderConnectionDetails);
         } else {
-            // Fall back to discovered local addresses
-            peerAddresses = discoverLocalLANAddresses();
-            logger.info("No sender connection details found, using discovered addresses: {}", peerAddresses);
+            // No sender transfer record found - this means the transfer hasn't been initiated yet
+            logger.error("Transfer code {} not found in database. Please ensure the sender has initiated a transfer with this code first.", transferCode);
+            ToastNotification.show(null, 
+                "Transfer code " + transferCode + " not found. Please ensure the sender has initiated a transfer with this code first.", 
+                ToastNotification.NotificationType.ERROR, 
+                javafx.util.Duration.seconds(5), 
+                70);
+            future.completeExceptionally(new RuntimeException("Transfer code not found: " + transferCode));
+            return future;
         }
         
         webSocketClientManager.connect(
@@ -1068,6 +1074,11 @@ public class TransferServiceImpl implements TransferService {
         // First try to get from database for cross-machine access
         try {
             List<SenderTransfer> transfers = senderTransferRepository.findByReceiverCodeOrderByStartTimeDesc(transferCode);
+            if (transfers.isEmpty()) {
+                logger.warn("No sender transfer record found in database for transfer code: {} - this means no sender has initiated a transfer with this code yet", transferCode);
+                return null;
+            }
+            
             for (SenderTransfer transfer : transfers) {
                 if (transfer.getSenderIp() != null && transfer.getSenderPort() != null) {
                     String details = transfer.getSenderIp() + ":" + transfer.getSenderPort();
@@ -1075,6 +1086,7 @@ public class TransferServiceImpl implements TransferService {
                     return details;
                 }
             }
+            logger.warn("Found sender transfer record for code {} but sender_ip or sender_port is null", transferCode);
         } catch (Exception e) {
             logger.warn("Failed to retrieve sender connection details from database: {}", e.getMessage());
         }
