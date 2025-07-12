@@ -590,7 +590,15 @@ public class WebSocketClientManager {
             }
             @Override
             public void onError(Exception ex) {
-                logger.error("WebSocket error: {}", ex.getMessage(), ex);
+                // Only log as error if it's not a common connection failure
+                if (ex instanceof java.net.ConnectException || 
+                    ex instanceof java.net.NoRouteToHostException ||
+                    ex.getMessage().contains("Connection refused") ||
+                    ex.getMessage().contains("No route to host")) {
+                    logger.debug("WebSocket connection failed: {}", ex.getMessage());
+                } else {
+                    logger.error("WebSocket error: {}", ex.getMessage(), ex);
+                }
                 onStatus.accept("Connection error: " + ex.getMessage());
                 Platform.runLater(() -> onError.accept(ex.getMessage()));
             }
@@ -716,16 +724,18 @@ public class WebSocketClientManager {
             }
         }
         
-        // 4. Try all local network IPs (only if we're in local test mode or if public IP failed)
+        // 4. Try only the most likely local network IPs (limit to 3 to avoid too many attempts)
         // For cross-network connections, local IPs are unlikely to work
         if (localTestMode || strategyIps.size() <= 2) { // Only try local IPs if we don't have many other options
             List<String> localIps = NetworkUtils.getAllLocalIpv4Addresses();
             if (localIps != null && !localIps.isEmpty()) {
+                int addedCount = 0;
                 for (String localIp : localIps) {
-                    if (!uniqueIps.contains(localIp)) {
+                    if (!uniqueIps.contains(localIp) && addedCount < 3) { // Limit to 3 local IPs
                         strategyIps.add(localIp);
                         uniqueIps.add(localIp);
                         logger.info("Connection strategy 4: Local network IP {}", localIp);
+                        addedCount++;
                     }
                 }
             }
@@ -756,8 +766,8 @@ public class WebSocketClientManager {
             String ip = strategyIps.get(i);
             int strategyIndex = i + 1;
             
-            // Try multiple ports for each IP
-            String[] portsToTry = {"8445", "8446", "8447"};
+            // Try multiple ports for each IP (reduced from 3 to 2 for faster connection)
+            String[] portsToTry = {"8445", "8446"};
             for (String portToTry : portsToTry) {
                 String url = "ws://" + ip + ":" + portToTry + "/transfer?code=" + transferCode + "&role=" + role;
                             try {
@@ -802,9 +812,14 @@ public class WebSocketClientManager {
                                 client.close();
                             }
                             
-                            logger.info("Strategy {} ({}:{}) failed", strategyIndex, ip, portToTry);
+                            // Only log failure if we haven't succeeded yet (to reduce spam)
+                            if (!completed.get()) {
+                                logger.debug("Strategy {} ({}:{}) failed", strategyIndex, ip, portToTry);
+                            }
                         } catch (Exception e) {
-                            logger.warn("Error in connection strategy {}: {}", strategyIndex, e.getMessage());
+                            if (!completed.get()) {
+                                logger.debug("Error in connection strategy {}: {}", strategyIndex, e.getMessage());
+                            }
                         }
                     });
                     
