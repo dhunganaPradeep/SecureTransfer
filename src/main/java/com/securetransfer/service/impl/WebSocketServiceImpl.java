@@ -56,8 +56,8 @@ public class WebSocketServiceImpl implements WebSocketService {
             TransferSession session = new TransferSession(transferCode, senderInfo, null, fileName, fileSize);
             activeSessions.put(transferCode, session);
             
-            // Store pending connection
-            pendingConnections.put(transferCode, future);
+            // Complete the future immediately - sender registration is complete
+            future.complete(null);
             
             logger.info("Sender registered successfully for transfer code: {}", transferCode);
             
@@ -88,12 +88,6 @@ public class WebSocketServiceImpl implements WebSocketService {
             session = new TransferSession(transferCode, session.getSender(), receiverInfo, session.getFileName(), session.getFileSize());
             session.setStatus(TransferStatus.CONNECTED);
             activeSessions.put(transferCode, session);
-            
-            // Complete pending sender connection
-            CompletableFuture<Void> pendingConnection = pendingConnections.remove(transferCode);
-            if (pendingConnection != null) {
-                pendingConnection.complete(null);
-            }
             
             // Complete receiver connection
             future.complete(null);
