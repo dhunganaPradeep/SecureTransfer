@@ -906,4 +906,27 @@ public class TransferServiceImpl implements TransferService {
         receiverConnectionCallbacks.put(transferCode, callback);
         logger.info("Registered receiver connection callback for transfer code: {}", transferCode);
     }
+
+    @Override
+    public void connectSenderWebSocketClient(String transferCode, String username) {
+        logger.info("Connecting sender as WebSocket client for transfer code: {}", transferCode);
+        Consumer<String> toast = msg -> ToastNotification.show(null, msg, ToastNotification.NotificationType.INFO, javafx.util.Duration.seconds(3), 70);
+        webSocketClientManager.connect(
+            transferCode,
+            "sender",
+            discoverLocalLANAddresses(),
+            toast,
+            err -> ToastNotification.show(null, "Connection error: " + err, ToastNotification.NotificationType.ERROR, javafx.util.Duration.seconds(3), 70),
+            url -> logger.info("Sender WebSocket open: {}", url),
+            reason -> logger.info("Sender WebSocket closed: {}", reason),
+            msg -> handleIncomingMessage(transferCode, msg),
+            bytes -> handleIncomingBinary(transferCode, bytes)
+        ).thenAccept(connResult -> {
+            activeClients.put(transferCode, connResult.client);
+            logger.info("Sender WebSocket client connected for transfer code: {}", transferCode);
+        }).exceptionally(ex -> {
+            logger.error("Failed to connect sender WebSocket client: {}", ex.getMessage());
+            return null;
+        });
+    }
 }

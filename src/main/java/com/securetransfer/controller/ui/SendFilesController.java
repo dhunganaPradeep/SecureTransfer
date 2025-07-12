@@ -754,6 +754,9 @@ private String getFileIconPath(String fileName) {
                 showReceiverConnectionDialog();
             });
         });
+
+        // Connect as WebSocket client (sender) to receive peerConnected events
+        transferService.connectSenderWebSocketClient(currentTransferCode, UserSession.getInstance().getCurrentUser().getUsername());
         
         // Also set a timeout in case no receiver connects
         Timeline timeoutTimer = new Timeline(

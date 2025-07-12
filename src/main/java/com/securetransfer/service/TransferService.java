@@ -125,6 +125,13 @@ public interface TransferService {
     void registerReceiverConnectionCallback(String transferCode, Runnable callback);
     
     /**
+     * Connects the sender as a WebSocket client to the server to receive peerConnected events.
+     * @param transferCode the transfer code
+     * @param username the sender's username
+     */
+    void connectSenderWebSocketClient(String transferCode, String username);
+    
+    /**
      * Transfer progress information
      */
     class TransferProgress {
