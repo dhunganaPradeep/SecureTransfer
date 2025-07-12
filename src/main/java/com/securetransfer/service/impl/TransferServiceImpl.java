@@ -358,10 +358,11 @@ public class TransferServiceImpl implements TransferService {
             webSocketService.registerProgressCallback(transferCode, progress -> {
                 // Use transferCode to look up file info if needed
                 List<SenderTransfer> transfersForCode = senderTransferRepository.findBySessionIdOrderByStartTimeDesc(session.getSender().getSessionId());
+                String fileName = !transfersForCode.isEmpty() ? transfersForCode.get(0).getFileName() : "Unknown";
                 long totalBytes = !transfersForCode.isEmpty() ? transfersForCode.get(0).getFileSize() : progress.getBytesTransferred();
                 TransferProgress transferProgress = new TransferProgress(
                     transferCode,
-                    null, // fileName not available
+                    fileName,
                     progress.getProgress(),
                     progress.getBytesTransferred(),
                     totalBytes
@@ -371,10 +372,11 @@ public class TransferServiceImpl implements TransferService {
             
             webSocketService.registerCompletionCallback(transferCode, complete -> {
                 List<SenderTransfer> transfersForCode = senderTransferRepository.findBySessionIdOrderByStartTimeDesc(session.getSender().getSessionId());
+                String fileName = !transfersForCode.isEmpty() ? transfersForCode.get(0).getFileName() : "Unknown";
                 String checksum = !transfersForCode.isEmpty() ? transfersForCode.get(0).getChecksum() : null;
                 TransferComplete transferComplete = new TransferComplete(
                     transferCode,
-                    null, // fileName not available
+                    fileName,
                     complete.isSuccess(),
                     complete.getErrorMessage(),
                     checksum
@@ -735,6 +737,19 @@ public class TransferServiceImpl implements TransferService {
                     logger.info("Receiver is ready to receive files for transfer code: {}", transferCode);
                     // Could trigger file sending here if using a pull model
                 }
+                case "peerConnected" -> {
+                    String role = root.path("role").asText("");
+                    if ("receiver".equals(role)) {
+                        logger.info("Receiver connected for transfer code: {}", transferCode);
+                        // Trigger the receiver connection callback
+                        Runnable callback = receiverConnectionCallbacks.get(transferCode);
+                        if (callback != null) {
+                            callback.run();
+                        } else {
+                            logger.warn("No receiver connection callback registered for transfer code: {}", transferCode);
+                        }
+                    }
+                }
                 default -> logger.info("Received message: {}", msg);
             }
         } catch (Exception e) {
@@ -844,6 +859,9 @@ public class TransferServiceImpl implements TransferService {
     // Store sender connection details
     private final Map<String, String> senderConnectionDetails = new ConcurrentHashMap<>();
     
+    // Store receiver connection callbacks
+    private final Map<String, Runnable> receiverConnectionCallbacks = new ConcurrentHashMap<>();
+    
     @Override
     public void storeSenderConnectionDetails(String transferCode, String ip, int port) {
         String details = ip + ":" + port;
@@ -860,5 +878,11 @@ public class TransferServiceImpl implements TransferService {
             logger.warn("No sender connection details found for transfer code: {}", transferCode);
         }
         return details;
+    }
+    
+    @Override
+    public void registerReceiverConnectionCallback(String transferCode, Runnable callback) {
+        receiverConnectionCallbacks.put(transferCode, callback);
+        logger.info("Registered receiver connection callback for transfer code: {}", transferCode);
     }
 }

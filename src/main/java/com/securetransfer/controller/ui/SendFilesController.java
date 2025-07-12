@@ -748,38 +748,71 @@ private String getFileIconPath(String fileName) {
     }
     
     private void registerForReceiverConnection() {
-        // Check for receiver connection every 2 seconds, with timeout and error handling
-        final Timeline[] connectionChecker = new Timeline[1];
-        final int[] elapsedSeconds = {0};
-        final int timeoutSeconds = 180; // 3 minutes
-        connectionChecker[0] = new Timeline(
-            new KeyFrame(Duration.seconds(2), e -> {
-                elapsedSeconds[0] += 2;
-                if (transferService.isTransferActive(currentTransferCode)) {
-                    showReceiverConnectionDialog();
-                    connectionChecker[0].stop();
-                } else if (elapsedSeconds[0] >= timeoutSeconds) {
+        // Register callback for when receiver connects
+        transferService.registerReceiverConnectionCallback(currentTransferCode, () -> {
+            Platform.runLater(() -> {
+                showReceiverConnectionDialog();
+            });
+        });
+        
+        // Also set a timeout in case no receiver connects
+        Timeline timeoutTimer = new Timeline(
+            new KeyFrame(Duration.seconds(180), e -> { // 3 minutes timeout
+                Platform.runLater(() -> {
                     showToast("No receiver connected within 3 minutes. Please try again.", ToastNotification.NotificationType.ERROR);
                     if (transferStage != null) transferStage.close();
                     disableFileUI(false);
-                    connectionChecker[0].stop();
-                }
+                });
             })
         );
-        connectionChecker[0].setCycleCount(Timeline.INDEFINITE);
-        connectionChecker[0].play();
+        timeoutTimer.play();
     }
     
     private void showReceiverConnectionDialog() {
         Platform.runLater(() -> {
-            Alert approvalAlert = new Alert(Alert.AlertType.CONFIRMATION);
-            approvalAlert.setTitle("Receiver Connected");
-            approvalAlert.setHeaderText("A receiver has connected with your transfer code.");
-            approvalAlert.setContentText("Do you want to proceed with the file transfer?");
-            approvalAlert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+            // Create a custom dialog with better styling
+            Dialog<ButtonType> dialog = new Dialog<>();
+            dialog.setTitle("Receiver Connected");
+            dialog.setHeaderText("A receiver has connected with your transfer code.");
             
-            approvalAlert.showAndWait().ifPresent(result -> {
-                if (result == ButtonType.YES) {
+            // Create custom content
+            VBox content = new VBox(20);
+            content.setAlignment(Pos.CENTER);
+            content.setPadding(new Insets(20));
+            content.setMinWidth(400);
+            
+            // File information
+            Label fileInfoLabel = new Label();
+            if (selectedFiles.size() == 1) {
+                fileInfoLabel.setText("File: " + selectedFiles.get(0).getName() + 
+                                    "\nSize: " + formatFileSize(selectedFiles.get(0).length()));
+            } else {
+                long totalSize = selectedFiles.stream().mapToLong(File::length).sum();
+                fileInfoLabel.setText("Files: " + selectedFiles.size() + " files" +
+                                    "\nTotal Size: " + formatFileSize(totalSize));
+            }
+            fileInfoLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+            fileInfoLabel.setAlignment(Pos.CENTER);
+            
+            // Confirmation message
+            Label confirmLabel = new Label("Do you want to proceed with the file transfer?");
+            confirmLabel.setStyle("-fx-font-size: 16px;");
+            confirmLabel.setAlignment(Pos.CENTER);
+            
+            content.getChildren().addAll(fileInfoLabel, confirmLabel);
+            dialog.getDialogPane().setContent(content);
+            
+            // Add buttons
+            ButtonType yesButton = new ButtonType("Yes, Send Files", ButtonBar.ButtonData.OK_DONE);
+            ButtonType noButton = new ButtonType("No, Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+            dialog.getDialogPane().getButtonTypes().setAll(yesButton, noButton);
+            
+            // Style the dialog
+            dialog.getDialogPane().getStyleClass().add("dialog-pane");
+            
+            // Show dialog and handle result
+            dialog.showAndWait().ifPresent(result -> {
+                if (result == yesButton) {
                     startActualFileTransfer();
                 } else {
                     transferService.cancelTransfer(currentTransferCode);
@@ -792,10 +825,73 @@ private String getFileIconPath(String fileName) {
     }
     
     private void startActualFileTransfer() {
-        popupStatusLabel.setText("Transferring files...");
-        // transferButton.setVisible(false); // This line is removed as per the new_code
-        buttonRow.getChildren().setAll(cancelButton);
+        // Track start time for speed calculation
+        final long transferStartTime = System.currentTimeMillis();
         
+        // Update the popup to show transfer progress
+        VBox content = new VBox(20);
+        content.setAlignment(Pos.CENTER);
+        content.setPadding(new Insets(32, 32, 32, 32));
+        content.getStyleClass().add("transfer-popup-pane");
+        content.setMinWidth(900);
+        content.setMinHeight(600);
+
+        Label icon = new Label("\uD83D\uDCE4"); // 📤
+        icon.setFont(Font.font("Segoe UI Emoji", 48));
+        icon.setAlignment(Pos.CENTER);
+
+        Label heading = new Label("Transferring Files");
+        heading.setFont(Font.font("Inter", FontWeight.BOLD, 24));
+        heading.setTextFill(Color.web("#059669"));
+        heading.setAlignment(Pos.CENTER);
+
+        // File info label
+        Label fileInfoLabel = new Label();
+        if (selectedFiles.size() == 1) {
+            fileInfoLabel.setText("File: " + selectedFiles.get(0).getName());
+        } else {
+            fileInfoLabel.setText("Files: " + selectedFiles.size() + " files");
+        }
+        fileInfoLabel.setFont(Font.font("Inter", 16));
+        fileInfoLabel.setTextFill(Color.web("#374151"));
+        fileInfoLabel.setAlignment(Pos.CENTER);
+
+        // Progress bar
+        ProgressBar progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(600);
+        progressBar.getStyleClass().add("transfer-progress-bar");
+
+        // Progress label
+        Label progressLabel = new Label("Preparing transfer...");
+        progressLabel.setFont(Font.font("Inter", 14));
+        progressLabel.setTextFill(Color.web("#6b7280"));
+        progressLabel.setAlignment(Pos.CENTER);
+
+        // Speed label
+        Label speedLabel = new Label("");
+        speedLabel.setFont(Font.font("Inter", 12));
+        speedLabel.setTextFill(Color.web("#9ca3af"));
+        speedLabel.setAlignment(Pos.CENTER);
+
+        Button cancelBtn = new Button("Cancel Transfer");
+        cancelBtn.getStyleClass().add("popup-btn-red");
+        cancelBtn.setMinWidth(160);
+        cancelBtn.setFont(Font.font("Inter", FontWeight.BOLD, 15));
+        cancelBtn.setOnAction(e -> handlePopupCancel());
+
+        HBox buttonRow = new HBox(20, cancelBtn);
+        buttonRow.setAlignment(Pos.CENTER);
+
+        content.getChildren().addAll(icon, heading, fileInfoLabel, progressBar, progressLabel, speedLabel, buttonRow);
+        transferStage.getScene().setRoot(content);
+
+        // Save references for progress updates
+        this.encryptionProgressBar = progressBar;
+        this.popupStatusLabel = progressLabel;
+        this.cancelButton = cancelBtn;
+        this.buttonRow = buttonRow;
+
+        // Start the actual file transfer
         transferService.startFileTransfer(currentTransferCode, 
             progress -> {
                 Platform.runLater(() -> {
@@ -803,7 +899,16 @@ private String getFileIconPath(String fileName) {
                         encryptionProgressBar.progressProperty().unbind();
                     }
                     encryptionProgressBar.setProgress(progress.getProgress());
-                    popupStatusLabel.setText(String.format("Transferring: %.1f%%", progress.getProgress() * 100));
+                    
+                    // Update progress label with percentage and file info
+                    String fileName = progress.getFileName() != null ? progress.getFileName() : "files";
+                    progressLabel.setText(String.format("Transferring %s: %.1f%%", fileName, progress.getProgress() * 100));
+                    
+                    // Calculate and show transfer speed
+                    if (progress.getBytesTransferred() > 0) {
+                        long bytesPerSecond = progress.getBytesTransferred() / Math.max(1, (System.currentTimeMillis() - transferStartTime) / 1000);
+                        speedLabel.setText(String.format("Speed: %s/s", formatFileSize(bytesPerSecond)));
+                    }
                 });
             },
             complete -> {
@@ -812,19 +917,31 @@ private String getFileIconPath(String fileName) {
                         encryptionProgressBar.progressProperty().unbind();
                     }
                     if (complete.isSuccess()) {
-                        popupStatusLabel.setText("Transfer completed successfully!");
+                        icon.setText("✅");
+                        heading.setText("Transfer Complete!");
+                        progressLabel.setText("Files transferred successfully!");
                         encryptionProgressBar.setProgress(1.0);
+                        speedLabel.setText("");
                         showToast("Files transferred successfully!", ToastNotification.NotificationType.SUCCESS);
                         
-                        // Close popup after 2 seconds
-                        new Timeline(new KeyFrame(Duration.seconds(2), e -> {
+                        // Change cancel button to close button
+                        cancelBtn.setText("Close");
+                        cancelBtn.setOnAction(e -> {
+                            if (transferStage != null) transferStage.close();
+                            disableFileUI(false);
+                        });
+                        
+                        // Auto-close after 3 seconds
+                        new Timeline(new KeyFrame(Duration.seconds(3), e -> {
                             if (transferStage != null) transferStage.close();
                             disableFileUI(false);
                         })).play();
                     } else {
-                        popupStatusLabel.setText("Transfer failed: " + complete.getErrorMessage());
+                        icon.setText("❌");
+                        heading.setText("Transfer Failed");
+                        progressLabel.setText("Transfer failed: " + complete.getErrorMessage());
                         showToast("Transfer failed: " + complete.getErrorMessage(), ToastNotification.NotificationType.ERROR);
-                        cancelButton.setText("Close");
+                        cancelBtn.setText("Close");
                     }
                 });
             }

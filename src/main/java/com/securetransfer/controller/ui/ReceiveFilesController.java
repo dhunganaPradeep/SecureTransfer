@@ -39,6 +39,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import javafx.animation.Timeline;
+import javafx.animation.KeyFrame;
 
 @Controller
 public class ReceiveFilesController extends BaseController implements Initializable {
@@ -504,43 +506,162 @@ public class ReceiveFilesController extends BaseController implements Initializa
     }
 
     private void showDownloadProgressPopup(String fileName, long fileSize) {
-        if (downloadProgressStage != null && downloadProgressStage.isShowing()) return;
         downloadProgressStage = new Stage();
         downloadProgressStage.initModality(Modality.APPLICATION_MODAL);
-        downloadProgressStage.setTitle("Downloading File");
-        VBox content = new VBox(24);
+        downloadProgressStage.setTitle("Receiving Files");
+        downloadProgressStage.setResizable(false);
+        downloadProgressStage.setAlwaysOnTop(true);
+
+        VBox content = new VBox(20);
         content.setAlignment(Pos.CENTER);
-        content.setPadding(new Insets(36, 36, 36, 36));
-        content.getStyleClass().add("download-popup-pane");
-        content.setMinWidth(520);
-        content.setMinHeight(320);
-        downloadFileNameLabel = new Label(fileName);
-        downloadFileNameLabel.getStyleClass().add("download-filename");
-        downloadFileSizeLabel = new Label(formatFileSize(fileSize));
-        downloadFileSizeLabel.getStyleClass().add("download-filesize");
-        downloadPercentLabel = new Label("0%");
-        downloadPercentLabel.getStyleClass().add("download-percent");
-        downloadSpeedLabel = new Label("");
-        downloadSpeedLabel.getStyleClass().add("download-speed");
+        content.setPadding(new Insets(32, 32, 32, 32));
+        content.getStyleClass().add("download-progress-pane");
+        content.setMinWidth(500);
+        content.setMinHeight(400);
+
+        // Icon
+        Label icon = new Label("\uD83D\uDCE5"); // 📥
+        icon.setFont(Font.font("Segoe UI Emoji", 48));
+        icon.setAlignment(Pos.CENTER);
+
+        // Heading
+        Label heading = new Label("Receiving Files");
+        heading.setFont(Font.font("Inter", FontWeight.BOLD, 24));
+        heading.setTextFill(Color.web("#059669"));
+        heading.setAlignment(Pos.CENTER);
+
+        // File info
+        downloadFileNameLabel = new Label("File: " + fileName);
+        downloadFileNameLabel.setFont(Font.font("Inter", 16));
+        downloadFileNameLabel.setTextFill(Color.web("#374151"));
+        downloadFileNameLabel.setAlignment(Pos.CENTER);
+
+        downloadFileSizeLabel = new Label("Size: " + formatFileSize(fileSize));
+        downloadFileSizeLabel.setFont(Font.font("Inter", 14));
+        downloadFileSizeLabel.setTextFill(Color.web("#6b7280"));
+        downloadFileSizeLabel.setAlignment(Pos.CENTER);
+
+        // Progress bar
         downloadProgressBar = new ProgressBar(0);
         downloadProgressBar.setPrefWidth(400);
         downloadProgressBar.getStyleClass().add("download-progress-bar");
+
+        // Progress percentage
+        downloadPercentLabel = new Label("0%");
+        downloadPercentLabel.setFont(Font.font("Inter", FontWeight.BOLD, 18));
+        downloadPercentLabel.setTextFill(Color.web("#059669"));
+        downloadPercentLabel.setAlignment(Pos.CENTER);
+
+        // Speed label
+        downloadSpeedLabel = new Label("Preparing...");
+        downloadSpeedLabel.setFont(Font.font("Inter", 12));
+        downloadSpeedLabel.setTextFill(Color.web("#9ca3af"));
+        downloadSpeedLabel.setAlignment(Pos.CENTER);
+
+        // Cancel button
         cancelDownloadButton = new Button("Cancel");
         cancelDownloadButton.getStyleClass().add("popup-btn-red");
         cancelDownloadButton.setMinWidth(120);
-        cancelDownloadButton.setFont(Font.font("Inter", FontWeight.BOLD, 15));
+        cancelDownloadButton.setFont(Font.font("Inter", FontWeight.BOLD, 14));
         cancelDownloadButton.setOnAction(e -> handleCancelDownload());
-        VBox infoBox = new VBox(8, downloadFileNameLabel, downloadFileSizeLabel, downloadPercentLabel, downloadSpeedLabel);
-        infoBox.setAlignment(Pos.CENTER);
-        content.getChildren().addAll(infoBox, downloadProgressBar, cancelDownloadButton);
+
+        content.getChildren().addAll(icon, heading, downloadFileNameLabel, downloadFileSizeLabel, 
+                                   downloadProgressBar, downloadPercentLabel, downloadSpeedLabel, cancelDownloadButton);
+
         Scene scene = new Scene(content);
         scene.getStylesheets().add(getClass().getResource("/styles/receive-files.css").toExternalForm());
         downloadProgressStage.setScene(scene);
-        downloadProgressStage.setOnCloseRequest(event -> {
-            event.consume();
-            handleCancelDownload();
-        });
         downloadProgressStage.show();
+
+        // Start tracking progress
+        startProgressTracking();
+    }
+    
+    private void startProgressTracking() {
+        final long startTime = System.currentTimeMillis();
+        lastBytesTransferred = 0;
+        lastUpdateTime = startTime;
+        
+        // Register for progress updates
+        webSocketService.registerProgressCallback(currentTransferCode, progress -> {
+            Platform.runLater(() -> {
+                // Update progress bar
+                downloadProgressBar.setProgress(progress.getProgress());
+                
+                // Update percentage
+                int percentage = (int) (progress.getProgress() * 100);
+                downloadPercentLabel.setText(percentage + "%");
+                
+                // Calculate and show speed
+                long currentTime = System.currentTimeMillis();
+                long timeElapsed = currentTime - startTime;
+                if (timeElapsed > 0 && progress.getBytesTransferred() > 0) {
+                    long bytesPerSecond = (progress.getBytesTransferred() * 1000) / timeElapsed;
+                    downloadSpeedLabel.setText("Speed: " + formatSpeed(bytesPerSecond));
+                }
+                
+                // Update status
+                if (progress.getProgress() >= 1.0) {
+                    downloadSpeedLabel.setText("Complete!");
+                }
+            });
+        });
+        
+        // Register for completion
+        webSocketService.registerCompletionCallback(currentTransferCode, complete -> {
+            Platform.runLater(() -> {
+                if (complete.isSuccess()) {
+                    // Show success
+                    Label icon = (Label) downloadProgressStage.getScene().getRoot().getChildrenUnmodifiable().get(0);
+                    icon.setText("✅");
+                    
+                    Label heading = (Label) downloadProgressStage.getScene().getRoot().getChildrenUnmodifiable().get(1);
+                    heading.setText("Transfer Complete!");
+                    
+                    downloadPercentLabel.setText("100%");
+                    downloadSpeedLabel.setText("Files received successfully!");
+                    downloadProgressBar.setProgress(1.0);
+                    
+                    // Change cancel button to close button
+                    cancelDownloadButton.setText("Close");
+                    cancelDownloadButton.setOnAction(e -> {
+                        closeDownloadProgressPopup();
+                        resetConnectionUI();
+                        loadTransferHistory();
+                    });
+                    
+                    // Auto-close after 3 seconds
+                    Timeline closeTimeline = new Timeline(
+                        new KeyFrame(Duration.seconds(3), ev -> {
+                            closeDownloadProgressPopup();
+                            resetConnectionUI();
+                            loadTransferHistory();
+                        })
+                    );
+                    closeTimeline.play();
+                    
+                    showToast("Files received successfully!", ToastNotification.NotificationType.SUCCESS);
+                } else {
+                    // Show error
+                    Label icon = (Label) downloadProgressStage.getScene().getRoot().getChildrenUnmodifiable().get(0);
+                    icon.setText("❌");
+                    
+                    Label heading = (Label) downloadProgressStage.getScene().getRoot().getChildrenUnmodifiable().get(1);
+                    heading.setText("Transfer Failed");
+                    
+                    downloadSpeedLabel.setText("Error: " + complete.getErrorMessage());
+                    
+                    // Change cancel button to close button
+                    cancelDownloadButton.setText("Close");
+                    cancelDownloadButton.setOnAction(e -> {
+                        closeDownloadProgressPopup();
+                        resetConnectionUI();
+                    });
+                    
+                    showToast("Transfer failed: " + complete.getErrorMessage(), ToastNotification.NotificationType.ERROR);
+                }
+            });
+        });
     }
 
     private void updateDownloadProgress(long bytesTransferred, long totalBytes, long startTime) {

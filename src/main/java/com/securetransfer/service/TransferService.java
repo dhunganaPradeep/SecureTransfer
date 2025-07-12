@@ -118,6 +118,13 @@ public interface TransferService {
     String getSenderConnectionDetails(String transferCode);
     
     /**
+     * Register a callback to be notified when a receiver connects to a transfer
+     * @param transferCode the transfer code
+     * @param callback the callback to execute when receiver connects
+     */
+    void registerReceiverConnectionCallback(String transferCode, Runnable callback);
+    
+    /**
      * Transfer progress information
      */
     class TransferProgress {
