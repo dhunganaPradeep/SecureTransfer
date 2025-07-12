@@ -54,6 +54,12 @@ public class SenderTransfer {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
     
+    @Column(name = "sender_ip", length = 45)
+    private String senderIp;
+    
+    @Column(name = "sender_port")
+    private Integer senderPort;
+    
     public String getFileName() { return fileName; }
     public void setFileName(String fileName) { this.fileName = fileName; }
     public Long getFileSize() { return fileSize; }
@@ -74,6 +80,10 @@ public class SenderTransfer {
     public void setReceiverUsername(String receiverUsername) { this.receiverUsername = receiverUsername; }
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+    public String getSenderIp() { return senderIp; }
+    public void setSenderIp(String senderIp) { this.senderIp = senderIp; }
+    public Integer getSenderPort() { return senderPort; }
+    public void setSenderPort(Integer senderPort) { this.senderPort = senderPort; }
     public String getFilePath() { return null; } // No file path stored for sender
     
     // Manual builder implementation for environments where Lombok is not working
@@ -91,6 +101,8 @@ public class SenderTransfer {
         private String sessionId;
         private String receiverUsername;
         private String errorMessage;
+        private String senderIp;
+        private Integer senderPort;
         public Builder fileName(String fileName) { this.fileName = fileName; return this; }
         public Builder fileSize(Long fileSize) { this.fileSize = fileSize; return this; }
         public Builder receiverCode(String receiverCode) { this.receiverCode = receiverCode; return this; }
@@ -101,6 +113,8 @@ public class SenderTransfer {
         public Builder sessionId(String sessionId) { this.sessionId = sessionId; return this; }
         public Builder receiverUsername(String receiverUsername) { this.receiverUsername = receiverUsername; return this; }
         public Builder errorMessage(String errorMessage) { this.errorMessage = errorMessage; return this; }
+        public Builder senderIp(String senderIp) { this.senderIp = senderIp; return this; }
+        public Builder senderPort(Integer senderPort) { this.senderPort = senderPort; return this; }
         public SenderTransfer build() {
             SenderTransfer st = new SenderTransfer();
             st.setFileName(fileName);
@@ -113,6 +127,8 @@ public class SenderTransfer {
             st.setSessionId(sessionId);
             st.setReceiverUsername(receiverUsername);
             st.setErrorMessage(errorMessage);
+            st.setSenderIp(senderIp);
+            st.setSenderPort(senderPort);
             return st;
         }
     }

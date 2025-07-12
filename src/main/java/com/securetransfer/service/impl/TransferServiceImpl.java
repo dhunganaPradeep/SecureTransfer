@@ -1031,6 +1031,19 @@ public class TransferServiceImpl implements TransferService {
         String details = ip + ":" + port;
         senderConnectionDetails.put(transferCode, details);
         logger.info("Stored sender connection details for {}: {}", transferCode, details);
+        
+        // Also store in database for cross-machine access
+        try {
+            List<SenderTransfer> transfers = senderTransferRepository.findByReceiverCodeOrderByStartTimeDesc(transferCode);
+            for (SenderTransfer transfer : transfers) {
+                transfer.setSenderIp(ip);
+                transfer.setSenderPort(port);
+                senderTransferRepository.save(transfer);
+                logger.info("Stored sender connection details in database for transfer: {}", transferCode);
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to store sender connection details in database: {}", e.getMessage());
+        }
     }
     
     /**
@@ -1052,9 +1065,24 @@ public class TransferServiceImpl implements TransferService {
     
     @Override
     public String getSenderConnectionDetails(String transferCode) {
+        // First try to get from database for cross-machine access
+        try {
+            List<SenderTransfer> transfers = senderTransferRepository.findByReceiverCodeOrderByStartTimeDesc(transferCode);
+            for (SenderTransfer transfer : transfers) {
+                if (transfer.getSenderIp() != null && transfer.getSenderPort() != null) {
+                    String details = transfer.getSenderIp() + ":" + transfer.getSenderPort();
+                    logger.info("Retrieved sender connection details from database for {}: {}", transferCode, details);
+                    return details;
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to retrieve sender connection details from database: {}", e.getMessage());
+        }
+        
+        // Fall back to in-memory storage
         String details = senderConnectionDetails.get(transferCode);
         if (details != null) {
-            logger.info("Retrieved sender connection details for {}: {}", transferCode, details);
+            logger.info("Retrieved sender connection details from memory for {}: {}", transferCode, details);
         } else {
             logger.warn("No sender connection details found for transfer code: {}", transferCode);
         }
