@@ -656,9 +656,31 @@ private String getFileIconPath(String fileName) {
                 encryptionProgressBar.setProgress(1.0);
                 // Generate and show code immediately after encryption
                 currentTransferCode = generateTransferCode();
-                showCodeDetailsInPopup(currentTransferCode);
-                // Start waiting for receiver in background
-                registerForReceiverConnection();
+                logger.info("Encryption completed - generated transfer code: {}", currentTransferCode);
+                
+                // Register the transfer with the service
+                String fileName = encryptedFiles.size() == 1 ? encryptedFiles.get(0).getName() : "MultipleFiles.zip";
+                long fileSize = encryptedFiles.size() == 1 ? encryptedFiles.get(0).length() : encryptedFiles.stream().mapToLong(File::length).sum();
+                logger.info("About to call initiateTransfer with code: {}", currentTransferCode);
+                
+                transferService.initiateTransfer(currentTransferCode, selectedFiles, UserSession.getInstance().getCurrentUser().getUsername(), fileName, fileSize)
+                    .thenAccept(session -> {
+                        Platform.runLater(() -> {
+                            logger.info("Transfer initiated successfully - session ID: {}", session.getSender().getSessionId());
+                            currentSessionId = session.getSender().getSessionId();
+                            showCodeDetailsInPopup(currentTransferCode);
+                            registerForReceiverConnection();
+                        });
+                    })
+                    .exceptionally(throwable -> {
+                        Platform.runLater(() -> {
+                            logger.error("Failed to initialize transfer: {}", throwable.getMessage(), throwable);
+                            showToast("Failed to initialize transfer: " + throwable.getMessage(), ToastNotification.NotificationType.ERROR);
+                            if (transferStage != null) transferStage.close();
+                            disableFileUI(false);
+                        });
+                        return null;
+                    });
             });
             encryptionTask.setOnFailed(e -> {
                 encryptionProgressBar.progressProperty().unbind();
@@ -1237,7 +1259,10 @@ private String getFileIconPath(String fileName) {
         transferBtn.getStyleClass().add("popup-btn-green");
         transferBtn.setMinWidth(160);
         transferBtn.setFont(Font.font("Inter", FontWeight.BOLD, 15));
-        transferBtn.setOnAction(e -> showTransferCodeInPopup());
+        transferBtn.setOnAction(e -> {
+            logger.info("Transfer button clicked - calling showTransferCodeInPopup");
+            showTransferCodeInPopup();
+        });
         Button cancelBtn = new Button("Cancel");
         cancelBtn.getStyleClass().add("popup-btn-red");
         cancelBtn.setMinWidth(160);
