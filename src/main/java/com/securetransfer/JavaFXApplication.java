@@ -33,33 +33,42 @@ public class JavaFXApplication extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception {
         try {
+            System.out.println("🚀 Launching JavaFX Application");
+
             URL fxmlUrl = getClass().getClassLoader().getResource("fxml/login.fxml");
+            System.out.println("FXML URL = " + fxmlUrl);
+
             if (fxmlUrl == null) {
-                throw new IOException("Cannot find fxml/login.fxml");
+                throw new IOException("❌ Cannot find fxml/login.fxml");
             }
 
             FXMLLoader fxmlLoader = new FXMLLoader(fxmlUrl);
             fxmlLoader.setControllerFactory(springContext::getBean);
             rootNode = fxmlLoader.load();
-            
+
             Object controller = fxmlLoader.getController();
             if (controller instanceof BaseController) {
                 ((BaseController) controller).setSpringContext(springContext);
             }
-            
+
             Scene scene = new Scene(rootNode);
-            
+            primaryStage.setTitle("Secure Transfer");
+
             URL cssUrl = getClass().getClassLoader().getResource("styles/global.css");
             if (cssUrl != null) {
                 scene.getStylesheets().add(cssUrl.toExternalForm());
+            } else {
+                System.out.println("⚠️ global.css not found");
             }
-            
-            primaryStage.setTitle("Secure Transfer");
+
             primaryStage.setScene(scene);
             primaryStage.setMinWidth(800);
             primaryStage.setMinHeight(600);
+
+            System.out.println("✅ Showing primary stage...");
             primaryStage.show();
         } catch (Exception e) {
+            System.err.println("❌ Exception in start(): " + e.getMessage());
             e.printStackTrace();
             throw e;
         }
@@ -69,4 +78,4 @@ public class JavaFXApplication extends Application {
     public void stop() {
         springContext.close();
     }
-} 
+}
