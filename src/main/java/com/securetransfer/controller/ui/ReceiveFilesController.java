@@ -46,24 +46,42 @@ import javafx.animation.KeyFrame;
 public class ReceiveFilesController extends BaseController implements Initializable {
     private static final Logger logger = LoggerFactory.getLogger(ReceiveFilesController.class);
 
-    @FXML private TextField codeTextField;
-    @FXML private Button connectButton;
-    @FXML private VBox transferStatusSection;
-    @FXML private Label statusLabel;
-    @FXML private ProgressBar transferProgressBar;
-    @FXML private Button cancelTransferButton;
-    @FXML private TableView<ReceiverTransfer> receivedFilesTable;
-    @FXML private TableColumn<ReceiverTransfer, String> fileNameColumn;
-    @FXML private TableColumn<ReceiverTransfer, Long> fileSizeColumn;
-    @FXML private TableColumn<ReceiverTransfer, String> senderColumn;
-    @FXML private TableColumn<ReceiverTransfer, String> receivedTimeColumn;
-    @FXML private TableColumn<ReceiverTransfer, String> statusColumn;
-    @FXML private TableColumn<ReceiverTransfer, Void> actionsColumn;
-    @FXML private Button refreshButton;
-    @FXML private VBox noFilesMessage;
-    @FXML private VBox connectionStatusBox;
-    @FXML private VBox codePopup;
-    @FXML private Text transferCodeText;
+    @FXML
+    private TextField codeTextField;
+    @FXML
+    private Button connectButton;
+    @FXML
+    private VBox transferStatusSection;
+    @FXML
+    private Label statusLabel;
+    @FXML
+    private ProgressBar transferProgressBar;
+    @FXML
+    private Button cancelTransferButton;
+    @FXML
+    private TableView<ReceiverTransfer> receivedFilesTable;
+    @FXML
+    private TableColumn<ReceiverTransfer, String> fileNameColumn;
+    @FXML
+    private TableColumn<ReceiverTransfer, Long> fileSizeColumn;
+    @FXML
+    private TableColumn<ReceiverTransfer, String> senderColumn;
+    @FXML
+    private TableColumn<ReceiverTransfer, String> receivedTimeColumn;
+    @FXML
+    private TableColumn<ReceiverTransfer, String> statusColumn;
+    @FXML
+    private TableColumn<ReceiverTransfer, Void> actionsColumn;
+    @FXML
+    private Button refreshButton;
+    @FXML
+    private VBox noFilesMessage;
+    @FXML
+    private VBox connectionStatusBox;
+    @FXML
+    private VBox codePopup;
+    @FXML
+    private Text transferCodeText;
 
     private ProgressIndicator connectingIndicator;
     private Label connectingLabel;
@@ -80,7 +98,7 @@ public class ReceiveFilesController extends BaseController implements Initializa
 
     @Autowired
     private TransferService transferService;
-    
+
     @Autowired
     private WebSocketService webSocketService;
 
@@ -94,7 +112,7 @@ public class ReceiveFilesController extends BaseController implements Initializa
         setupTable();
         setupCodeValidation();
         loadTransferHistory();
-        
+
         // Hide received files section by default
         receivedFilesTable.setVisible(false);
         receivedFilesTable.setManaged(false);
@@ -110,23 +128,21 @@ public class ReceiveFilesController extends BaseController implements Initializa
 
     private void setupTable() {
         // Configure table columns
-        fileNameColumn.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleStringProperty(data.getValue().getFileName()));
-        
-        fileSizeColumn.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleObjectProperty<>(data.getValue().getFileSize()));
-        
-        senderColumn.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleStringProperty(data.getValue().getSenderUsername() != null ? 
-                data.getValue().getSenderUsername() : "Unknown"));
-        
-        receivedTimeColumn.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleStringProperty(
+        fileNameColumn.setCellValueFactory(
+                data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getFileName()));
+
+        fileSizeColumn.setCellValueFactory(
+                data -> new javafx.beans.property.SimpleObjectProperty<>(data.getValue().getFileSize()));
+
+        senderColumn.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
+                data.getValue().getSenderUsername() != null ? data.getValue().getSenderUsername() : "Unknown"));
+
+        receivedTimeColumn.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
                 data.getValue().getReceivedTime().format(DateTimeFormatter.ofPattern("MMM dd, HH:mm"))));
-        
-        statusColumn.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleStringProperty(data.getValue().getTransferStatus().toString()));
-        
+
+        statusColumn.setCellValueFactory(
+                data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getTransferStatus().toString()));
+
         // Setup actions column
         actionsColumn.setCellFactory(param -> new TableCell<>() {
             private final Button saveButton = new Button("Save");
@@ -136,12 +152,12 @@ public class ReceiveFilesController extends BaseController implements Initializa
             {
                 saveButton.getStyleClass().add("save-btn");
                 openButton.getStyleClass().add("open-btn");
-                
+
                 saveButton.setOnAction(e -> {
                     ReceiverTransfer transfer = getTableView().getItems().get(getIndex());
                     saveFile(transfer);
                 });
-                
+
                 openButton.setOnAction(e -> {
                     ReceiverTransfer transfer = getTableView().getItems().get(getIndex());
                     openFile(transfer);
@@ -164,7 +180,7 @@ public class ReceiveFilesController extends BaseController implements Initializa
 
         // Set table data
         receivedFilesTable.setItems(receivedFilesList);
-        
+
         // Show/hide no files message based on table content
         receivedFilesList.addListener((javafx.collections.ListChangeListener<ReceiverTransfer>) change -> {
             updateReceivedFilesSection();
@@ -184,7 +200,8 @@ public class ReceiveFilesController extends BaseController implements Initializa
     }
 
     private void showConnectingLoader(String message) {
-        if (loaderStage != null && loaderStage.isShowing()) return;
+        if (loaderStage != null && loaderStage.isShowing())
+            return;
         loaderStage = new Stage();
         loaderStage.initModality(Modality.APPLICATION_MODAL);
         loaderStage.setTitle("Connecting");
@@ -215,7 +232,10 @@ public class ReceiveFilesController extends BaseController implements Initializa
 
         content.getChildren().addAll(loader, label);
         Scene scene = new Scene(content);
-        scene.getStylesheets().add(getClass().getResource("/styles/receive-files.css").toExternalForm());
+        URL cssResource = getClass().getResource("/styles/global.css");
+        if (cssResource != null) {
+            scene.getStylesheets().add(cssResource.toExternalForm());
+        }
         loaderStage.setScene(scene);
         loaderStage.show();
     }
@@ -234,79 +254,83 @@ public class ReceiveFilesController extends BaseController implements Initializa
             showToast("Please enter a transfer code.", ToastNotification.NotificationType.ERROR);
             return;
         }
-        
+
         currentTransferCode = code;
         showConnectingLoader("Connecting to sender…");
-        
+
         // Run connection in background
         CompletableFuture.runAsync(() -> {
-            transferService.connectToTransfer(code, UserSession.getInstance().getCurrentUser() != null ? 
-                    UserSession.getInstance().getCurrentUser().getUsername() : "receiver")
-                .thenAccept(session -> {
-                    Platform.runLater(() -> {
-                        // Hide loader, show success UI
-                        closeConnectingLoader();
-                        if (session != null) {
-                            // Show connection success toast and UI
-                            showToast("Successfully connected to sender!", ToastNotification.NotificationType.SUCCESS);
-                            statusLabel.setText("Connected to sender");
-                            transferStatusSection.setVisible(true);
-                            
-                            // Show file information and progress UI if file information is available
-                            if (session.getFileName() != null && session.getFileSize() > 0) {
-                                showDownloadProgressPopup(session.getFileName(), session.getFileSize());
-                                // Begin waiting for transfer to start
-                                waitForTransferStart();
+            transferService
+                    .connectToTransfer(code,
+                            UserSession.getInstance().getCurrentUser() != null
+                                    ? UserSession.getInstance().getCurrentUser().getUsername()
+                                    : "receiver")
+                    .thenAccept(session -> {
+                        Platform.runLater(() -> {
+                            // Hide loader, show success UI
+                            closeConnectingLoader();
+                            if (session != null) {
+                                // Show connection success toast and UI
+                                showToast("Successfully connected to sender!",
+                                        ToastNotification.NotificationType.SUCCESS);
+                                statusLabel.setText("Connected to sender");
+                                transferStatusSection.setVisible(true);
+
+                                // Show file information and progress UI if file information is available
+                                if (session.getFileName() != null && session.getFileSize() > 0) {
+                                    showDownloadProgressPopup(session.getFileName(), session.getFileSize());
+                                    // Begin waiting for transfer to start
+                                    waitForTransferStart();
+                                } else {
+                                    // No file info yet, show waiting status
+                                    statusLabel.setText("Connected. Waiting for file information...");
+                                    // Set up a checker for when file info becomes available
+                                    checkForFileInfo();
+                                }
                             } else {
-                                // No file info yet, show waiting status
+                                showToast("Connection established but no session details available.",
+                                        ToastNotification.NotificationType.WARNING);
                                 statusLabel.setText("Connected. Waiting for file information...");
-                                // Set up a checker for when file info becomes available
-                                checkForFileInfo();
+                                transferStatusSection.setVisible(true);
                             }
-                        } else {
-                            showToast("Connection established but no session details available.", 
-                                ToastNotification.NotificationType.WARNING);
-                            statusLabel.setText("Connected. Waiting for file information...");
-                            transferStatusSection.setVisible(true);
-                        }
+                        });
+                    })
+                    .exceptionally(ex -> {
+                        Platform.runLater(() -> {
+                            closeConnectingLoader();
+                            showToast("Failed to connect: " + ex.getMessage(),
+                                    ToastNotification.NotificationType.ERROR);
+                            resetConnectionUI();
+                        });
+                        return null;
                     });
-                })
-                .exceptionally(ex -> {
-                    Platform.runLater(() -> {
-                        closeConnectingLoader();
-                        showToast("Failed to connect: " + ex.getMessage(), ToastNotification.NotificationType.ERROR);
-                        resetConnectionUI();
-                    });
-                    return null;
-                });
         });
     }
-    
+
     private void checkForFileInfo() {
         // Check for file info every 2 seconds
         final javafx.animation.Timeline[] fileInfoChecker = new javafx.animation.Timeline[1];
         fileInfoChecker[0] = new javafx.animation.Timeline(
-            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(2), e -> {
-                // Get active sessions from transfer service
-                List<TransferSession> activeSessions = transferService.getActiveSessions();
-                
-                // Find the current session
-                Optional<TransferSession> currentSession = activeSessions.stream()
-                    .filter(session -> session.getTransferCode().equals(currentTransferCode))
-                    .findFirst();
-                
-                if (currentSession.isPresent() && 
-                    currentSession.get().getFileName() != null && 
-                    currentSession.get().getFileSize() > 0) {
-                    
-                    // File info available, show download UI
-                    TransferSession session = currentSession.get();
-                    showDownloadProgressPopup(session.getFileName(), session.getFileSize());
-                    fileInfoChecker[0].stop();
-                    waitForTransferStart();
-                }
-            })
-        );
+                new javafx.animation.KeyFrame(javafx.util.Duration.seconds(2), e -> {
+                    // Get active sessions from transfer service
+                    List<TransferSession> activeSessions = transferService.getActiveSessions();
+
+                    // Find the current session
+                    Optional<TransferSession> currentSession = activeSessions.stream()
+                            .filter(session -> session.getTransferCode().equals(currentTransferCode))
+                            .findFirst();
+
+                    if (currentSession.isPresent() &&
+                            currentSession.get().getFileName() != null &&
+                            currentSession.get().getFileSize() > 0) {
+
+                        // File info available, show download UI
+                        TransferSession session = currentSession.get();
+                        showDownloadProgressPopup(session.getFileName(), session.getFileSize());
+                        fileInfoChecker[0].stop();
+                        waitForTransferStart();
+                    }
+                }));
         fileInfoChecker[0].setCycleCount(javafx.animation.Timeline.INDEFINITE);
         fileInfoChecker[0].play();
     }
@@ -315,14 +339,13 @@ public class ReceiveFilesController extends BaseController implements Initializa
         // Check for transfer start every 2 seconds
         final javafx.animation.Timeline[] transferChecker = new javafx.animation.Timeline[1];
         transferChecker[0] = new javafx.animation.Timeline(
-            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(2), e -> {
-                if (transferService.isTransferActive(currentTransferCode)) {
-                    // Transfer started, show progress
-                    showTransferProgress();
-                    transferChecker[0].stop();
-                }
-            })
-        );
+                new javafx.animation.KeyFrame(javafx.util.Duration.seconds(2), e -> {
+                    if (transferService.isTransferActive(currentTransferCode)) {
+                        // Transfer started, show progress
+                        showTransferProgress();
+                        transferChecker[0].stop();
+                    }
+                }));
         transferChecker[0].setCycleCount(javafx.animation.Timeline.INDEFINITE);
         transferChecker[0].play();
     }
@@ -331,7 +354,7 @@ public class ReceiveFilesController extends BaseController implements Initializa
         statusLabel.setText("Receiving files...");
         transferProgressBar.setVisible(true);
         transferProgressBar.setProgress(0.0);
-        
+
         // Register for real progress updates from the transfer service
         webSocketService.registerProgressCallback(currentTransferCode, progress -> {
             Platform.runLater(() -> {
@@ -339,7 +362,7 @@ public class ReceiveFilesController extends BaseController implements Initializa
                 statusLabel.setText(String.format("Receiving files... %.1f%%", progress.getProgress() * 100));
             });
         });
-        
+
         // Register for completion callback
         webSocketService.registerCompletionCallback(currentTransferCode, complete -> {
             Platform.runLater(() -> {
@@ -347,18 +370,18 @@ public class ReceiveFilesController extends BaseController implements Initializa
                     statusLabel.setText("Files received successfully!");
                     transferProgressBar.setProgress(1.0);
                     showToast("Files received successfully!", ToastNotification.NotificationType.SUCCESS);
-                    
+
                     // Close status section after 3 seconds
                     javafx.animation.Timeline closeTimeline = new javafx.animation.Timeline(
-                        new javafx.animation.KeyFrame(javafx.util.Duration.seconds(3), ev -> {
-                            resetConnectionUI();
-                            loadTransferHistory();
-                        })
-                    );
+                            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(3), ev -> {
+                                resetConnectionUI();
+                                loadTransferHistory();
+                            }));
                     closeTimeline.play();
                 } else {
                     statusLabel.setText("Transfer failed: " + complete.getErrorMessage());
-                    showToast("Transfer failed: " + complete.getErrorMessage(), ToastNotification.NotificationType.ERROR);
+                    showToast("Transfer failed: " + complete.getErrorMessage(),
+                            ToastNotification.NotificationType.ERROR);
                     resetConnectionUI();
                 }
             });
@@ -420,29 +443,29 @@ public class ReceiveFilesController extends BaseController implements Initializa
         DirectoryChooser directoryChooser = new DirectoryChooser();
         directoryChooser.setTitle("Choose directory to save file");
         directoryChooser.setInitialDirectory(new File(System.getProperty("user.home")));
-        
+
         File selectedDirectory = directoryChooser.showDialog(getStage());
         if (selectedDirectory != null) {
             try {
                 // Save the actual file data using the transfer service
                 File targetFile = transferService.saveReceivedFile(
-                    currentTransferCode, 
-                    transfer.getFileName(), 
-                    transfer.getFileData(), 
-                    selectedDirectory
-                ).get(); // Wait for completion
-                
+                        currentTransferCode,
+                        transfer.getFileName(),
+                        transfer.getFileData(),
+                        selectedDirectory).get(); // Wait for completion
+
                 // Update transfer status
                 transfer.setTransferStatus(ReceiverTransfer.TransferStatus.SAVED);
                 transfer.setSavedTime(java.time.LocalDateTime.now());
                 transfer.setFilePath(targetFile.getAbsolutePath());
                 transfer.setAutoSaved(true);
-                
+
                 // Refresh the table
                 receivedFilesTable.refresh();
-                
-                showToast("File saved successfully to: " + targetFile.getAbsolutePath(), ToastNotification.NotificationType.SUCCESS);
-                
+
+                showToast("File saved successfully to: " + targetFile.getAbsolutePath(),
+                        ToastNotification.NotificationType.SUCCESS);
+
             } catch (Exception e) {
                 logger.error("Error saving file", e);
                 showToast("Error saving file: " + e.getMessage(), ToastNotification.NotificationType.ERROR);
@@ -490,7 +513,8 @@ public class ReceiveFilesController extends BaseController implements Initializa
         }
     }
 
-    // Call this method when you want to show the code popup (e.g., after code is validated/received)
+    // Call this method when you want to show the code popup (e.g., after code is
+    // validated/received)
     private void showCodePopup(String code) {
         if (codePopup != null && transferCodeText != null) {
             transferCodeText.setText(code);
@@ -565,33 +589,36 @@ public class ReceiveFilesController extends BaseController implements Initializa
         cancelDownloadButton.setFont(Font.font("Inter", FontWeight.BOLD, 14));
         cancelDownloadButton.setOnAction(e -> handleCancelDownload());
 
-        content.getChildren().addAll(icon, heading, downloadFileNameLabel, downloadFileSizeLabel, 
-                                   downloadProgressBar, downloadPercentLabel, downloadSpeedLabel, cancelDownloadButton);
+        content.getChildren().addAll(icon, heading, downloadFileNameLabel, downloadFileSizeLabel,
+                downloadProgressBar, downloadPercentLabel, downloadSpeedLabel, cancelDownloadButton);
 
         Scene scene = new Scene(content);
-        scene.getStylesheets().add(getClass().getResource("/styles/receive-files.css").toExternalForm());
+        URL cssResource = getClass().getResource("/styles/global.css");
+        if (cssResource != null) {
+            scene.getStylesheets().add(cssResource.toExternalForm());
+        }
         downloadProgressStage.setScene(scene);
         downloadProgressStage.show();
 
         // Start tracking progress
         startProgressTracking();
     }
-    
+
     private void startProgressTracking() {
         final long startTime = System.currentTimeMillis();
         lastBytesTransferred = 0;
         lastUpdateTime = startTime;
-        
+
         // Register for progress updates
         webSocketService.registerProgressCallback(currentTransferCode, progress -> {
             Platform.runLater(() -> {
                 // Update progress bar
                 downloadProgressBar.setProgress(progress.getProgress());
-                
+
                 // Update percentage
                 int percentage = (int) (progress.getProgress() * 100);
                 downloadPercentLabel.setText(percentage + "%");
-                
+
                 // Calculate and show speed
                 long currentTime = System.currentTimeMillis();
                 long timeElapsed = currentTime - startTime;
@@ -599,14 +626,14 @@ public class ReceiveFilesController extends BaseController implements Initializa
                     long bytesPerSecond = (progress.getBytesTransferred() * 1000) / timeElapsed;
                     downloadSpeedLabel.setText("Speed: " + formatSpeed(bytesPerSecond));
                 }
-                
+
                 // Update status
                 if (progress.getProgress() >= 1.0) {
                     downloadSpeedLabel.setText("Complete!");
                 }
             });
         });
-        
+
         // Register for completion
         webSocketService.registerCompletionCallback(currentTransferCode, complete -> {
             Platform.runLater(() -> {
@@ -614,14 +641,14 @@ public class ReceiveFilesController extends BaseController implements Initializa
                     // Show success
                     Label icon = (Label) downloadProgressStage.getScene().getRoot().getChildrenUnmodifiable().get(0);
                     icon.setText("✅");
-                    
+
                     Label heading = (Label) downloadProgressStage.getScene().getRoot().getChildrenUnmodifiable().get(1);
                     heading.setText("Transfer Complete!");
-                    
+
                     downloadPercentLabel.setText("100%");
                     downloadSpeedLabel.setText("Files received successfully!");
                     downloadProgressBar.setProgress(1.0);
-                    
+
                     // Change cancel button to close button
                     cancelDownloadButton.setText("Close");
                     cancelDownloadButton.setOnAction(e -> {
@@ -629,36 +656,36 @@ public class ReceiveFilesController extends BaseController implements Initializa
                         resetConnectionUI();
                         loadTransferHistory();
                     });
-                    
+
                     // Auto-close after 3 seconds
                     Timeline closeTimeline = new Timeline(
-                        new KeyFrame(Duration.seconds(3), ev -> {
-                            closeDownloadProgressPopup();
-                            resetConnectionUI();
-                            loadTransferHistory();
-                        })
-                    );
+                            new KeyFrame(Duration.seconds(3), ev -> {
+                                closeDownloadProgressPopup();
+                                resetConnectionUI();
+                                loadTransferHistory();
+                            }));
                     closeTimeline.play();
-                    
+
                     showToast("Files received successfully!", ToastNotification.NotificationType.SUCCESS);
                 } else {
                     // Show error
                     Label icon = (Label) downloadProgressStage.getScene().getRoot().getChildrenUnmodifiable().get(0);
                     icon.setText("❌");
-                    
+
                     Label heading = (Label) downloadProgressStage.getScene().getRoot().getChildrenUnmodifiable().get(1);
                     heading.setText("Transfer Failed");
-                    
+
                     downloadSpeedLabel.setText("Error: " + complete.getErrorMessage());
-                    
+
                     // Change cancel button to close button
                     cancelDownloadButton.setText("Close");
                     cancelDownloadButton.setOnAction(e -> {
                         closeDownloadProgressPopup();
                         resetConnectionUI();
                     });
-                    
-                    showToast("Transfer failed: " + complete.getErrorMessage(), ToastNotification.NotificationType.ERROR);
+
+                    showToast("Transfer failed: " + complete.getErrorMessage(),
+                            ToastNotification.NotificationType.ERROR);
                 }
             });
         });
@@ -694,15 +721,20 @@ public class ReceiveFilesController extends BaseController implements Initializa
     }
 
     private String formatSpeed(double bytesPerSecond) {
-        if (bytesPerSecond < 1024) return String.format("%.0f B/s", bytesPerSecond);
-        if (bytesPerSecond < 1024 * 1024) return String.format("%.1f KB/s", bytesPerSecond / 1024.0);
+        if (bytesPerSecond < 1024)
+            return String.format("%.0f B/s", bytesPerSecond);
+        if (bytesPerSecond < 1024 * 1024)
+            return String.format("%.1f KB/s", bytesPerSecond / 1024.0);
         return String.format("%.1f MB/s", bytesPerSecond / (1024.0 * 1024.0));
     }
 
     private String formatFileSize(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
-        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
+        if (bytes < 1024)
+            return bytes + " B";
+        if (bytes < 1024 * 1024)
+            return String.format("%.1f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024)
+            return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
         return String.format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
     }
-} 
+}

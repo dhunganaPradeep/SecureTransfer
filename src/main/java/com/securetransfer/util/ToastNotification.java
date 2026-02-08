@@ -15,14 +15,17 @@ import javafx.stage.Popup;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.stage.Window;
+import java.net.URL;
 
 public class ToastNotification {
     private static Popup currentPopup = null;
+
     public static void show(Stage ownerStage, String message, NotificationType type, Duration duration) {
-        show(ownerStage, message, type, duration, 70); 
+        show(ownerStage, message, type, duration, 70);
     }
 
-    public static void show(Stage ownerStage, String message, NotificationType type, Duration duration, double topMargin) {
+    public static void show(Stage ownerStage, String message, NotificationType type, Duration duration,
+            double topMargin) {
         if (ownerStage == null) {
             // Fallback: get the focused window, or skip showing the notification
             Window window = Window.getWindows().stream().filter(Window::isFocused).findFirst().orElse(null);
@@ -64,13 +67,14 @@ public class ToastNotification {
             pane.setPrefWidth(320);
             pane.setPrefHeight(65);
             pane.setOpacity(0);
-            
+
             // Set initial position for right-to-left animation
             pane.setTranslateX(100);
 
-            pane.getStylesheets().add(
-                ToastNotification.class.getResource("/styles/toast-notification.css").toExternalForm()
-            );
+            URL cssResource = ToastNotification.class.getResource("/styles/global.css");
+            if (cssResource != null) {
+                pane.getStylesheets().add(cssResource.toExternalForm());
+            }
 
             Scene scene = finalOwnerStage.getScene();
             double marginX = 20;
@@ -82,27 +86,21 @@ public class ToastNotification {
 
             // Slide in from right and fade in
             Timeline slideIn = new Timeline(
-                new KeyFrame(Duration.ZERO, 
-                    new KeyValue(pane.opacityProperty(), 0),
-                    new KeyValue(pane.translateXProperty(), 100)
-                ),
-                new KeyFrame(Duration.millis(300), 
-                    new KeyValue(pane.opacityProperty(), 1),
-                    new KeyValue(pane.translateXProperty(), 0)
-                )
-            );
+                    new KeyFrame(Duration.ZERO,
+                            new KeyValue(pane.opacityProperty(), 0),
+                            new KeyValue(pane.translateXProperty(), 100)),
+                    new KeyFrame(Duration.millis(300),
+                            new KeyValue(pane.opacityProperty(), 1),
+                            new KeyValue(pane.translateXProperty(), 0)));
 
             // Slide out to left and fade out
             Timeline slideOut = new Timeline(
-                new KeyFrame(Duration.ZERO, 
-                    new KeyValue(pane.opacityProperty(), 1),
-                    new KeyValue(pane.translateXProperty(), 0)
-                ),
-                new KeyFrame(Duration.millis(600), e -> popup.hide(), 
-                    new KeyValue(pane.opacityProperty(), 0),
-                    new KeyValue(pane.translateXProperty(), -100)
-                )
-            );
+                    new KeyFrame(Duration.ZERO,
+                            new KeyValue(pane.opacityProperty(), 1),
+                            new KeyValue(pane.translateXProperty(), 0)),
+                    new KeyFrame(Duration.millis(600), e -> popup.hide(),
+                            new KeyValue(pane.opacityProperty(), 0),
+                            new KeyValue(pane.translateXProperty(), -100)));
 
             slideIn.setOnFinished(e -> {
                 Timeline delay = new Timeline(new KeyFrame(duration));
@@ -116,10 +114,16 @@ public class ToastNotification {
 
     private static String getIconSvg(NotificationType type) {
         return switch (type) {
-            case SUCCESS -> "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"; // checkmark circle
-            case ERROR -> "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"; // X circle
+            case SUCCESS ->
+                "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"; // checkmark
+                                                                                                                                         // circle
+            case ERROR ->
+                "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"; // X
+                                                                                                                                                                                                   // circle
             case WARNING -> "M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"; // warning triangle
-            case INFO -> "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"; // info circle
+            case INFO ->
+                "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"; // info
+                                                                                                                    // circle
         };
     }
 
